@@ -13,12 +13,14 @@ import epharma.service.AppointmentService;
 /**
  * 
  * @author Sameer Shukla
- *
+ * 
  */
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
 
 	Map<String, Appointment> openAppointments = new HashMap<String, Appointment>();
+
+	private static final String OPEN = "open";
 
 	/**
 	 * Prepare all the dummy appointments
@@ -49,7 +51,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 			return null;
 		}
 
-		if (appointment.getStatus().equalsIgnoreCase("open")) {
+		if (appointment.getStatus().equalsIgnoreCase(OPEN)) {
 			appointment.setStatus("close");
 		}
 
@@ -59,7 +61,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
 	}
 
-	
 	public boolean cancelAppointment(int id) {
 		return false;
 	}
@@ -68,12 +69,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	 * Fetch all the open slots
 	 */
 	public Map<String, Appointment> checkOpenSlots() {
-		Map<String, Appointment> openslots = new HashMap<String, Appointment>();
-		for (Map.Entry<String, Appointment> entry : openAppointments.entrySet()) {
-			if (entry.getValue().getStatus().equalsIgnoreCase("open")) {
-				openslots.put(entry.getKey(), entry.getValue());
-			}
-		}
+		Map<String, Appointment> openslots = populateOpenSlots(null);
 		return openslots;
 	}
 
@@ -81,18 +77,30 @@ public class AppointmentServiceImpl implements AppointmentService {
 	 * Fetch all the open slots + name of doctor
 	 */
 	public Map<String, Appointment> checkOpenSlots(String name) {
+		Map<String, Appointment> openslots = populateOpenSlots(name);
+		return openslots;
+	}
+
+	private Map<String, Appointment> populateOpenSlots(String name) {
 		Map<String, Appointment> openslots = new HashMap<String, Appointment>();
 		for (Map.Entry<String, Appointment> entry : openAppointments.entrySet()) {
-			if (entry.getValue().getStatus().equalsIgnoreCase("open")
-					&& entry.getValue().getDoctorname().equalsIgnoreCase(name)) {
+			if (entry.getValue().getStatus().equalsIgnoreCase(OPEN)
+					&& name != null) {
+				if (entry.getValue().getDoctorname().equalsIgnoreCase(name)) {
+					openslots.put(entry.getKey(), entry.getValue());
+				}
+			} else if (entry.getValue().getStatus().equalsIgnoreCase(OPEN)) {
 				openslots.put(entry.getKey(), entry.getValue());
 			}
+
 		}
+
 		return openslots;
 	}
 
 	/**
 	 * Generate random strings
+	 * 
 	 * @return
 	 */
 	public static String idGenerator() {
@@ -100,6 +108,4 @@ public class AppointmentServiceImpl implements AppointmentService {
 		return uuid;
 	}
 
-
-	
 }
