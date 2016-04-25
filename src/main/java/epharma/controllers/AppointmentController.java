@@ -1,8 +1,9 @@
 package epharma.controllers;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -51,21 +52,13 @@ public class AppointmentController {
 	@RequestMapping(value = "/{status}", method = RequestMethod.GET)
 	public OpenSlotResponse checkAppointments() {
 
-		Map<String, Appointment> openSlots = service.checkOpenSlots();
-		if (openSlots.size() == 0) {
-			throw new AppointmentNotFoundException("No Appointments Found!!");
-		}
+		Optional<Map<String, Appointment>> openOptionSlots = Optional.of(service.checkOpenSlots());
+		Map<String, Appointment> openSlots = openOptionSlots
+				.orElseThrow(() -> new DoctorNotFoundException("No Appoinment Found for requested Doctor"));
+		List<Slot> slotList = openSlots.entrySet().stream().map(e -> getSlot(e.getValue()))
+				.collect(Collectors.toList());
 
 		OpenSlotResponse openSlotResponse = new OpenSlotResponse();
-
-		List<Slot> slotList = new ArrayList<Slot>();
-		for (Map.Entry<String, Appointment> entry : openSlots.entrySet()) {
-			Appointment appointment = entry.getValue();
-			Slot slot = getSlot(appointment);
-			slot.setLink(new Link("/slot/" + appointment.getId()));
-			slotList.add(slot);
-		}
-
 		openSlotResponse.setSlot(slotList);
 		return openSlotResponse;
 	}
@@ -85,23 +78,15 @@ public class AppointmentController {
 		if (doctorname == null)
 			throw new IllegalArgumentException();
 
-		Map<String, Appointment> openSlots = service.checkOpenSlots(doctorname);
+		Optional<Map<String, Appointment>> openOptionSlots = Optional.of(service.checkOpenSlots(doctorname));
 
-		if (openSlots.size() == 0) {
-			throw new DoctorNotFoundException(
-					"No Appoinment Found for requested Doctor");
-		}
+		Map<String, Appointment> openSlots = openOptionSlots
+				.orElseThrow(() -> new DoctorNotFoundException("No Appoinment Found for requested Doctor"));
+
+		List<Slot> slotList = openSlots.entrySet().stream().map(e -> getSlot(e.getValue()))
+				.collect(Collectors.toList());
 
 		OpenSlotResponse openSlotResponse = new OpenSlotResponse();
-
-		List<Slot> slotList = new ArrayList<Slot>();
-		for (Map.Entry<String, Appointment> entry : openSlots.entrySet()) {
-			Appointment appointment = entry.getValue();
-			Slot slot = getSlot(appointment);
-			slot.setLink(new Link("/slot/" + appointment.getId()));
-			slotList.add(slot);
-		}
-
 		openSlotResponse.setSlot(slotList);
 		return openSlotResponse;
 	}
@@ -123,15 +108,11 @@ public class AppointmentController {
 			throw new IllegalArgumentException("Patient name is required");
 
 		if (id == null) {
-			throw new AppointmentNotFoundException(
-					"Appointment cannot be done withoutid");
+			throw new AppointmentNotFoundException("Appointment cannot be done withoutid");
 		}
+		Optional<Appointment> optionAppointment = Optional.of(service.bookAppointment(id));
+		Appointment appointment = optionAppointment.orElseThrow(() -> new AppointmentNotFoundException());
 		AppointmentResponse response = new AppointmentResponse();
-		Appointment appointment = service.bookAppointment(id);
-		if (appointment == null)
-			throw new AppointmentNotFoundException(
-					"No appointment with given id");
-
 		if (appointment.getStatus().equalsIgnoreCase("close")) {
 			response.setSlot(getSlot(appointment));
 			response.setBooked(true);
@@ -141,10 +122,10 @@ public class AppointmentController {
 
 		return response;
 	}
-	
 
 	/**
 	 * Common method
+	 * 
 	 * @param appointment
 	 * @return
 	 */
@@ -154,6 +135,7 @@ public class AppointmentController {
 		slot.setStart(appointment.getStart());
 		slot.setEnd(appointment.getEnd());
 		slot.setId(appointment.getId());
+		slot.setLink(new Link("/slot/" + appointment.getId()));
 		return slot;
 	}
 
@@ -165,8 +147,7 @@ public class AppointmentController {
 	 */
 	@ExceptionHandler(AppointmentNotFoundException.class)
 	@ResponseStatus(HttpStatus.NOT_FOUND)
-	public String handleAppointmentNotFoundException(
-			AppointmentNotFoundException e) {
+	public String handleAppointmentNotFoundException(AppointmentNotFoundException e) {
 		return e.getMessage();
 	}
 

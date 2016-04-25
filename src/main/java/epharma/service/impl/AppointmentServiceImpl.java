@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -18,46 +19,38 @@ import epharma.service.AppointmentService;
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
 
-	Map<String, Appointment> openAppointments = new HashMap<String, Appointment>();
-
 	private static final String OPEN = "open";
+
+	HashMap<String, Appointment> openAppointments = new HashMap<>();
 
 	/**
 	 * Prepare all the dummy appointments
 	 */
+	@SuppressWarnings("serial")
 	public AppointmentServiceImpl() {
-		Appointment appointment1 = new Appointment(idGenerator(), "sshukla",
-				new Date(30042014), "1450", "1500", "open");
-		Appointment appointment2 = new Appointment(idGenerator(), "sshukla",
-				new Date(30052014), "1550", "1600", "open");
-		Appointment appointment3 = new Appointment(idGenerator(), "mjones",
-				new Date(10042014), "1650", "1500", "open");
-		Appointment appointment4 = new Appointment(idGenerator(), "achourey",
-				new Date(20042014), "1750", "1500", "open");
 
-		openAppointments.put(appointment1.getId(), appointment1);
-		openAppointments.put(appointment2.getId(), appointment2);
-		openAppointments.put(appointment3.getId(), appointment3);
-		openAppointments.put(appointment4.getId(), appointment4);
+		final Appointment appointment1 = new Appointment(idGenerator(), "sshukla", new Date(30042014), "1450", "1500",
+				OPEN);
+		final Appointment appointment2 = new Appointment(idGenerator(), "mjones", new Date(10042014), "1650", "1500",
+				OPEN);
+
+		openAppointments = new HashMap<String, Appointment>() {
+			{
+				put(appointment1.getId(), appointment1);
+				put(appointment2.getId(), appointment2);
+			}
+		};
+
 	}
 
 	/**
 	 * Book appointment by checking id and setting status to close.
 	 */
 	public Appointment bookAppointment(String id) {
-		Appointment appointment = openAppointments.get(id);
-
-		if (appointment == null) {
-			return null;
-		}
-
-		if (appointment.getStatus().equalsIgnoreCase(OPEN)) {
-			appointment.setStatus("close");
-		}
-
-		openAppointments.put(id, appointment);
-
-		return appointment;
+		Appointment bookAppointment = openAppointments.entrySet().stream()
+				.filter(slot -> slot.getValue().id.equals(id) && slot.getValue().getStatus().equals(OPEN))
+				.collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())).getOrDefault(id, new Appointment());
+		return bookAppointment;
 
 	}
 
@@ -69,7 +62,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 	 * Fetch all the open slots
 	 */
 	public Map<String, Appointment> checkOpenSlots() {
-		Map<String, Appointment> openslots = populateOpenSlots(null);
+		Map<String, Appointment> openslots = openAppointments.entrySet().stream()
+				.filter(openSlot -> openSlot.getValue().getStatus().equalsIgnoreCase(OPEN))
+				.collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
 		return openslots;
 	}
 
@@ -77,24 +72,10 @@ public class AppointmentServiceImpl implements AppointmentService {
 	 * Fetch all the open slots + name of doctor
 	 */
 	public Map<String, Appointment> checkOpenSlots(String name) {
-		Map<String, Appointment> openslots = populateOpenSlots(name);
-		return openslots;
-	}
-
-	private Map<String, Appointment> populateOpenSlots(String name) {
-		Map<String, Appointment> openslots = new HashMap<String, Appointment>();
-		for (Map.Entry<String, Appointment> entry : openAppointments.entrySet()) {
-			if (entry.getValue().getStatus().equalsIgnoreCase(OPEN)
-					&& name != null) {
-				if (entry.getValue().getDoctorname().equalsIgnoreCase(name)) {
-					openslots.put(entry.getKey(), entry.getValue());
-				}
-			} else if (entry.getValue().getStatus().equalsIgnoreCase(OPEN)) {
-				openslots.put(entry.getKey(), entry.getValue());
-			}
-
-		}
-
+		Map<String, Appointment> openslots = openAppointments.entrySet().stream()
+				.filter(openSlot -> openSlot.getValue().getDoctorname().equalsIgnoreCase(name)
+						&& openSlot.getValue().getStatus().equalsIgnoreCase(OPEN))
+				.collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
 		return openslots;
 	}
 
